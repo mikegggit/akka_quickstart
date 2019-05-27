@@ -28,6 +28,18 @@ class Device extends AbstractActor {
         return Props.create(Device.class, () -> new Device(groupId, deviceId));
     }
 
+    public static final class RequestTrackDevice {
+        public final String groupId;
+        public final String deviceId;
+
+        public RequestTrackDevice(String groupId, String deviceId) {
+            this.groupId = groupId;
+            this.deviceId = deviceId;
+        }
+    }
+
+    public static final class DeviceRegistered {}
+
     public static final class RecordTemperature {
         final long requestId;
         final double value;
@@ -78,6 +90,20 @@ class Device extends AbstractActor {
     @Override
     public Receive createReceive() {
         return receiveBuilder()
+                .match(
+                        RequestTrackDevice.class,
+                        r -> {
+                            if (this.groupId.equals(r.groupId) && this.deviceId.equals(r.deviceId)) {
+                                getSender().tell(new DeviceRegistered(), getSelf());
+                            } else {
+                                log.warning(
+                                        "Ignoring TrackDevice request for {}-{}.This actor is responsible for {}-{}.",
+                                        r.groupId,
+                                        r.deviceId,
+                                        this.groupId,
+                                        this.deviceId);
+                            }
+                        })
                 .match(RecordTemperature.class,
                         r -> {
                             log.info("Recorded temperature reading {} with {}", r.value, r.requestId);
