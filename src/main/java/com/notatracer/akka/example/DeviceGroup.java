@@ -6,10 +6,12 @@ import akka.actor.Props;
 import akka.actor.Terminated;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 public class DeviceGroup extends AbstractActor {
     private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
@@ -152,12 +154,33 @@ public class DeviceGroup extends AbstractActor {
         deviceIdToActor.remove(deviceId);
     }
 
+    private void onAllTemperatures(RequestAllTemperatures r) {
+        // since Java collections are mutable, we want to avoid sharing them between actors (since
+        // multiple Actors (threads)
+        // modifying the same mutable data-structure is not safe), and perform a defensive copy of the
+        // mutable map:
+        //
+        // Feel free to use your favourite immutable data-structures library with Akka in Java
+        // applications!
+        Map<ActorRef, String> actorToDeviceIdCopy = new HashMap<>(this.actorToDeviceId);
+
+        getContext()
+                .actorOf(
+                        DeviceGroupQuery.props(
+                                actorToDeviceIdCopy,
+                                r.requestId,
+                                getSender(),
+                                new FiniteDuration(3, TimeUnit.SECONDS)));
+    }
+
+
     @Override
     public Receive createReceive() {
         return receiveBuilder()
                 .match(DeviceManager.RequestTrackDevice.class, this::onTrackDevice)
                 .match(RequestDeviceList.class, this::onDeviceList)
                 .match(Terminated.class, this::onTerminated)
+                .match(RequestAllTemperatures.class, this::onAllTemperatures)
                 .build();
     }
 }
