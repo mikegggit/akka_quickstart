@@ -7,8 +7,6 @@ import akka.actor.Props;
 import akka.event.Logging;
 import akka.event.LoggingAdapter;
 
-import java.util.Optional;
-
 class Device extends AbstractActor {
     private final LoggingAdapter log = Logging.getLogger(getContext().getSystem(), this);
 
@@ -27,18 +25,6 @@ class Device extends AbstractActor {
     public static Props props(String groupId, String deviceId) {
         return Props.create(Device.class, () -> new Device(groupId, deviceId));
     }
-
-    public static final class RequestTrackDevice {
-        public final String groupId;
-        public final String deviceId;
-
-        public RequestTrackDevice(String groupId, String deviceId) {
-            this.groupId = groupId;
-            this.deviceId = deviceId;
-        }
-    }
-
-    public static final class DeviceRegistered {}
 
     public static final class RecordTemperature {
         final long requestId;
@@ -91,10 +77,12 @@ class Device extends AbstractActor {
     public Receive createReceive() {
         return receiveBuilder()
                 .match(
-                        RequestTrackDevice.class,
+                        DeviceManager.RequestTrackDevice.class,
                         r -> {
+                            System.out.println("here");
                             if (this.groupId.equals(r.groupId) && this.deviceId.equals(r.deviceId)) {
-                                getSender().tell(new DeviceRegistered(), getSelf());
+                                log.info("Sending DeviceRegistered message...");
+                                getSender().tell(new DeviceManager.DeviceRegistered(), getSelf());
                             } else {
                                 log.warning(
                                         "Ignoring TrackDevice request for {}-{}.This actor is responsible for {}-{}.",

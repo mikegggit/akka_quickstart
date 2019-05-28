@@ -56,7 +56,8 @@ public class DeviceGroup extends AbstractActor {
     }
 
     private void onTrackDevice(DeviceManager.RequestTrackDevice trackMsg) {
-        if (this.groupId.equals(trackMsg.groupId)) {
+        if (this.groupId.equals(trackMsg.groupId)) {    // double check the message was forwarded appropriately, and something didn't get here
+                                                        // through back channel somehow...
             ActorRef deviceActor = deviceIdToActor.get(trackMsg.deviceId);
             if (deviceActor != null) {
                 deviceActor.forward(trackMsg, getContext());
@@ -65,6 +66,7 @@ public class DeviceGroup extends AbstractActor {
                 deviceActor =
                         getContext()
                                 .actorOf(Device.props(groupId, trackMsg.deviceId), "device-" + trackMsg.deviceId);
+                getContext().watch(deviceActor);        // track state of the actor just created...
                 actorToDeviceId.put(deviceActor, trackMsg.deviceId);
                 deviceIdToActor.put(trackMsg.deviceId, deviceActor);
                 deviceActor.forward(trackMsg, getContext());
